@@ -30,50 +30,58 @@
 { Embarcadero Technologies                                                     }
 {                                                                              }
 {******************************************************************************}
-{                                                                              }
-{ This unit contains resource strings used by svnide package.                  }
-{                                                                              }
-{******************************************************************************}
-
-unit SvnIDEConst;
+unit HgIDEUtils;
 
 interface
 
-resourcestring
-  sLoadError = 'Can not load DLL';
-  sSubversion = 'Subversion';
-  sPMMCommit = 'Commit';
-  sPMMUpdate = 'Update';
-  sPMMClean = 'Clean';
-  sPMMSvnParent = 'Subversion';
-  sPMMLog = 'Show Log';
-  sPMMRootDir = 'From Repository Root';
-  sPMMProjectDir = 'From Project Directory';
-  sPMMExpicitFiles = 'Files in this Project';
-  sPMMRepo = 'Browse Repository';
-  sMenuAddToVersionControl = 'Subversion Import';
-  sMenuOpenFromVersionControl = 'Open From Subversion (Checkout)';
+uses
+  HgUITypes, DesignIntf;
 
-  sCommit = 'Commit';
-  sUpdated = 'Updated';
-  sUpdateCompletedAtRevision = 'At Revision: %d';
-  sCommited = 'Commited';
-  sCommitCompleted = 'Commit completed at revision: %d';
-  sCommitLoaded = 'A commit window is still open. Please close it if you wish to start a new commit.';
-  sNeedToClean = 'Run Subversion Clean to correct problem.';
-  sRunClean = 'Would you like to run Subversion Clean?';
-  sCleaning = 'Cleaning ';
-  sLog = 'Log';
-  sImport = 'Import';
-  sFilesUnderDir = 'All files under %s will be committed';
-  sWorking = '-Working';
-  sRepoBrowser = 'Repository Browser';
-  sVersionControlAddInOptionArea = 'Version Control';
-  sMergeDialogCaption = 'Merge revisions %s - %s of %s into %s';
-  sHead = 'HEAD';
-  sRetrievingFileRevision = 'Retrieving %s revision %d';
-  sSavingFileRevision = 'Saving %s revision %d';
+function EditActionToSvnEditAction(AEditAction: TEditAction): TSvnEditAction;
+function SvnEditStateToEditState(ASvnEditState: TSvnEditState): TEditState;
+function SaveAll: Boolean;
 
 implementation
+
+uses SysUtils, ToolsApi;
+
+function EditActionToSvnEditAction(AEditAction: TEditAction): TSvnEditAction;
+begin
+  case AEditAction of
+    eaUndo     : Result := seaUndo;
+    eaRedo     : Result := seaRedo;
+    eaCut      : Result := seaCut;
+    eaCopy     : Result := seaCopy;
+    eaPaste    : Result := seaPaste;
+    eaDelete   : Result := seaDelete;
+    eaSelectAll: Result := seaSelectAll;
+    else
+      Result := seaUnknown;
+  end;
+end;
+
+function SvnEditStateToEditState(ASvnEditState: TSvnEditState): TEditState;
+begin
+  Result := [];
+  if sesCanUndo in ASvnEditState then
+    Include(Result, esCanUndo);
+  if sesCanRedo in ASvnEditState then
+    Include(Result, esCanRedo);
+  if sesCanCut in ASvnEditState then
+    Include(Result, esCanCut);
+  if sesCanCopy in ASvnEditState then
+    Include(Result, esCanCopy);
+  if sesCanPaste in ASvnEditState then
+    Include(Result, esCanPaste);
+  if sesCanDelete in ASvnEditState then
+    Include(Result, esCanDelete);
+  if sesCanSelectAll in ASvnEditState then
+    Include(Result, esCanSelectAll);
+end;
+
+function SaveAll: Boolean;
+begin
+  Result := (BorlandIDEServices as IOTAModuleServices).SaveAll;
+end;
 
 end.

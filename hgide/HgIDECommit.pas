@@ -30,59 +30,57 @@
 { Embarcadero Technologies                                                     }
 {                                                                              }
 {******************************************************************************}
-unit SvnIDECommit;
+unit HgIDECommit;
 
 interface
 
-uses Classes, SvnIDEMenus, SvnIDEClient, SvnClient;
+uses Classes, HgIDEMenus, HgIDEClient, HgClient;
 
 type
-  TBaseCommitSvnMenu = class(TSvnMenu)
+  TBaseCommitHgMenu = class(THgMenu)
   protected
     FRootType: TRootType;
-    FSvnIDEClient: TSvnIDEClient;
+    FSvnIDEClient: THgIDEClient;
     procedure Execute(const MenuContextList: IInterfaceList); override;
   public
-    constructor Create(ASvnIDEClient: TSvnIDEClient);
+    constructor Create(ASvnIDEClient: THgIDEClient);
   end;
 
-  TParentCommitSvnMenu = class(TSvnMenu)
+  TParentCommitHgMenu = class(THgMenu)
   protected
     function GetImageIndex: Integer; override;
   public
     constructor Create;
   end;
 
-  TRootDirCommitSvnMenu = class(TBaseCommitSvnMenu)
+  TRootDirCommitHgMenu = class(TBaseCommitHgMenu)
   public
-    constructor Create(ASvnIDEClient: TSvnIDEClient);
+    constructor Create(ASvnIDEClient: THgIDEClient);
   end;
 
-  TProjectDirCommitSvnMenu = class(TBaseCommitSvnMenu)
+  TProjectDirCommitHgMenu = class(TBaseCommitHgMenu)
   public
-    constructor Create(ASvnIDEClient: TSvnIDEClient);
+    constructor Create(ASvnIDEClient: THgIDEClient);
   end;
 
-  TExpicitFilesCommitSvnMenu = class(TBaseCommitSvnMenu)
+  TExpicitFilesCommitHgMenu = class(TBaseCommitHgMenu)
   public
-    constructor Create(ASvnIDEClient: TSvnIDEClient);
+    constructor Create(ASvnIDEClient: THgIDEClient);
   end;
 
-  TFileCommitSvnMenu = class(TBaseCommitSvnMenu)
+  TFileCommitHgMenu = class(TBaseCommitHgMenu)
+  public
+    constructor Create(ASvnIDEClient: THgIDEClient);
+  end;
+
+  TDirCommitHgMenu = class(TBaseCommitHgMenu)
   protected
     function GetImageIndex: Integer; override;
   public
-    constructor Create(ASvnIDEClient: TSvnIDEClient);
+    constructor Create(ASvnIDEClient: THgIDEClient);
   end;
 
-  TDirCommitSvnMenu = class(TBaseCommitSvnMenu)
-  protected
-    function GetImageIndex: Integer; override;
-  public
-    constructor Create(ASvnIDEClient: TSvnIDEClient);
-  end;
-
-  procedure DoCommit(const SvnClient: TSvnClient; const CommitList: TStringList;
+  procedure DoCommit(const SvnClient: THgClient; const CommitList: TStringList;
     const Comment: string; const RecentComments: TStringList; ADeleteLocalHistory: Boolean);
 
   procedure LoadRecentComments(const RecentComments:TStringList);
@@ -93,14 +91,14 @@ type
 
 implementation
 
-uses SysUtils, ToolsApi, Forms, DesignIntf, ComCtrls, Controls, SvnIDEConst,
-  SvnClientCommitFrame, svn_client, FileHistoryAPI, IStreams,
-  ActiveX, Dialogs, SvnIDEClean, SvnIDEMessageView, Registry, SvnUITypes,
-  SvnIDEUtils, Graphics, IOUtils, Types, SvnIDEIcons;
+uses SysUtils, ToolsApi, Forms, DesignIntf, ComCtrls, Controls, HgIDEConst,
+  HgClientCommitFrame, {svn_client, }FileHistoryAPI, IStreams,
+  ActiveX, Dialogs, {SvnIDEClean,} HgIDEMessageView, Registry, HgUITypes,
+  HgIDEUtils, Graphics, IOUtils, Types, HgIDEIcons;
 
 const
   sPMVCommit = 'Commit';
-  sSvnCommitView = 'SvnCommitView';
+  sSvnCommitView = 'HgCommitView';
   sPMVCommitParent = 'CommitParent';
   sPMVRootDirCommit = 'RootDirCommit';
   sPMVProjectDirCommit = 'ProjectDirCommit';
@@ -121,8 +119,8 @@ type
       TRefreshProc = procedure(const SvnListItem: TSvnListViewItem) of object;
     var
       FDirectoryList: TStringList;
-      FSvnClient: TSvnClient;
-      FSvnCommitFrame: TSvnCommitFrame;
+      FSvnClient: THgClient;
+      FSvnCommitFrame: THgCommitFrame;
       FRootType: TRootType;
       FFoundMissing: Boolean;
       FStatusItem: PSvnListViewItem;
@@ -145,34 +143,32 @@ type
     procedure Close(var Allowed: Boolean);
 
     { CallBacks }
-    procedure ModificationCallBack(Sender: TObject; Item: TSvnItem;
+    procedure ModificationCallBack(Sender: TObject; Item: THgItem;
       var Cancel: Boolean);
     procedure CommitCallBack(const CommitList: TStringList;
       const Comment: string; const RecentComments: TStringList);
     procedure DiffCallBack(const FileName: string);
     function FileColorCallBack(AItem: TSvnListViewItem): TColor;
-    function RevertCallBack(const FileName: string; ARecursive: Boolean; var ANewTextStatus: TSvnWCStatusKind): Boolean;
+    function RevertCallBack(const FileName: string; ARecursive: Boolean; var ANewTextStatus: THgStatus): Boolean;
     procedure CloseCallBack;
     function AddCallBack(const FileName: string): Boolean;
-    function AddToChangeListCallBack(const FileName, AChangeList: string): Boolean;
     procedure ResolveCallBack(const FileName: string);
     procedure GetFileStatusCallBack(const FileName: string; var SvnListViewItem: TSvnListViewItem);
-    procedure StatusCallBack(Sender: TObject; Item: TSvnItem; var Cancel: Boolean);
+    procedure StatusCallBack(Sender: TObject; Item: THgItem; var Cancel: Boolean);
     procedure RefreshCallBack;
-    function RemoveFromChangeListCallBack(const FileName: string): Boolean;
-    procedure ModificationRefreshCallBack(Sender: TObject; Item: TSvnItem;
+    procedure ModificationRefreshCallBack(Sender: TObject; Item: THgItem;
       var Cancel: Boolean);
     { Misc }
-    procedure PrepareFileList(FrameAdd: TRefreshProc; AModificationCallBack: TSvnStatusCallback; var AURL: string);
+    procedure PrepareFileList(FrameAdd: TRefreshProc; AModificationCallBack: THgStatusCallback; var AURL: string);
   public
-    constructor Create(SvnClient: TSvnClient; const DirectoryList: TStringList;
+    constructor Create(SvnClient: THgClient; const DirectoryList: TStringList;
       RootType: TRootType);
     destructor Destroy; override;
   end;
 
-{ TBaseCommitSvnMenu }
+{ TBaseCommitHgMenu }
 
-constructor TBaseCommitSvnMenu.Create(ASvnIDEClient: TSvnIDEClient);
+constructor TBaseCommitHgMenu.Create(ASvnIDEClient: THgIDEClient);
 begin
   inherited;
   FCaption := sPMMCommit;
@@ -184,7 +180,7 @@ begin
   FRootType := rtRootDir;
 end;
 
-procedure TBaseCommitSvnMenu.Execute(const MenuContextList: IInterfaceList);
+procedure TBaseCommitHgMenu.Execute(const MenuContextList: IInterfaceList);
 var
   DirectoryList: TStringList;
   ProjectFound: Boolean;
@@ -198,8 +194,8 @@ begin
   begin
   DirectoryList := TStringList.Create;
   try
-    BuildFileList(MenuContextList, DirectoryList, FSvnIDEClient.SvnClient, FRootType, ProjectFound);
-    CommitView := TCommit.Create(FSvnIDEClient.SvnClient, DirectoryList, FRootType);
+    BuildFileList(MenuContextList, DirectoryList, FSvnIDEClient.HgClient, FRootType, ProjectFound);
+    CommitView := TCommit.Create(FSvnIDEClient.HgClient, DirectoryList, FRootType);
     (BorlandIDEServices as IOTAEditorViewServices).ShowEditorView(CommitView);
   finally
     DirectoryList.Free;
@@ -207,26 +203,26 @@ begin
 end;
 end;
 
-{ TParentCommitSvnMenu }
+{ TParentCommitHgMenu }
 
-constructor TParentCommitSvnMenu.Create;
+constructor TParentCommitHgMenu.Create;
 begin
   inherited Create(nil);
   FCaption := sPMMCommit;
   FVerb := sPMVCommitParent;
-  FParent := sPMVSvnParent;
+  FParent := sPMVHgParent;
   FPosition := pmmpParentCommitSvnMenu;
   FHelpContext := 0;
 end;
 
-function TParentCommitSvnMenu.GetImageIndex: Integer;
+function TParentCommitHgMenu.GetImageIndex: Integer;
 begin
   Result := CommitImageIndex;
 end;
 
-{ TRootDirCommitSvnMenu }
+{ TRootDirCommitHgMenu }
 
-constructor TRootDirCommitSvnMenu.Create(ASvnIDEClient: TSvnIDEClient);
+constructor TRootDirCommitHgMenu.Create(ASvnIDEClient: THgIDEClient);
 begin
   inherited Create(ASvnIDEClient);
   FRootType := rtRootDir;
@@ -237,9 +233,9 @@ begin
   FHelpContext := 0;
 end;
 
-{ TProjectDirCommitSvnMenu }
+{ TProjectDirCommitHgMenu }
 
-constructor TProjectDirCommitSvnMenu.Create(ASvnIDEClient: TSvnIDEClient);
+constructor TProjectDirCommitHgMenu.Create(ASvnIDEClient: THgIDEClient);
 begin
   inherited Create(ASvnIDEClient);
   FRootType := rtProjectDir;
@@ -250,9 +246,9 @@ begin
   FHelpContext := 0;
 end;
 
-{ TExpicitFilesCommitSvnMenu }
+{ TExpicitFilesCommitHgMenu }
 
-constructor TExpicitFilesCommitSvnMenu.Create(ASvnIDEClient: TSvnIDEClient);
+constructor TExpicitFilesCommitHgMenu.Create(ASvnIDEClient: THgIDEClient);
 begin
   inherited Create(ASvnIDEClient);
   FRootType := rtExpicitFiles;
@@ -263,38 +259,33 @@ begin
   FHelpContext := 0;
 end;
 
-{ TFileCommitSvnMenu }
+{ TFileCommitHgMenu }
 
-constructor TFileCommitSvnMenu.Create(ASvnIDEClient: TSvnIDEClient);
+constructor TFileCommitHgMenu.Create(ASvnIDEClient: THgIDEClient);
 begin
   inherited Create(ASvnIDEClient);
   FRootType := rtRootDir;
-  FParent := sPMVSvnParent;
+  FParent := sPMVHgParent;
   FCaption := sPMMCommit;
   FVerb := sPMVCommit;
   FPosition := pmmpFileCommitSvnMenu;
   FHelpContext := 0;
 end;
 
-function TFileCommitSvnMenu.GetImageIndex: Integer;
-begin
-  Result := CommitImageIndex;
-end;
+{ TDirCommitHgMenu }
 
-{ TDirCommitSvnMenu }
-
-constructor TDirCommitSvnMenu.Create(ASvnIDEClient: TSvnIDEClient);
+constructor TDirCommitHgMenu.Create(ASvnIDEClient: THgIDEClient);
 begin
   inherited Create(ASvnIDEClient);
   FRootType := rtDir;
-  FParent := sPMVSvnParent;
+  FParent := sPMVHgParent;
   FCaption := sPMMCommit;
   FVerb := sPMVDirCommit;
   FPosition := pmmpFileCommitSvnMenu;
   FHelpContext := 0;
 end;
 
-function TDirCommitSvnMenu.GetImageIndex: Integer;
+function TDirCommitHgMenu.GetImageIndex: Integer;
 begin
   Result := CommitImageIndex;
 end;
@@ -303,34 +294,7 @@ end;
 
 function TCommit.AddCallBack(const FileName: string): Boolean;
 begin
-  Result := False;
-  try
-    FSvnClient.Add(FileName);
-    Result := True;
-  except
-    if not HandleSvnException(ExceptObject) then
-      raise;
-  end;
-end;
-
-function TCommit.AddToChangeListCallBack(const FileName, AChangeList: string): Boolean;
-var
-  PathNames: TStringList;
-begin
-  Result := False;
-  try
-    PathNames := TStringList.Create;
-    try
-      PathNames.Add(FileName);
-      FSvnClient.AddToChangeList(PathNames, AChangeList);
-    finally
-      PathNames.Free;
-    end;
-    Result := True;
-  except
-    if not HandleSvnException(ExceptObject) then
-      raise;
-  end;
+  Result := FSvnClient.Add(FileName);
 end;
 
 function TCommit.CloneEditorView: INTACustomEditorView;
@@ -357,10 +321,10 @@ end;
 procedure TCommit.CommitCallBack(const CommitList: TStringList;
   const Comment: string; const RecentComments: TStringList);
 begin
-  DoCommit(FSvnClient, CommitList, Comment, RecentComments, IDEClient.Options.DeleteBackupFilesAfterCommit);
+  DoCommit(FSvnClient, CommitList, Comment, RecentComments, False{IDEClient.Options.DeleteBackupFilesAfterCommit});
 end;
 
-constructor TCommit.Create(SvnClient: TSvnClient; const DirectoryList: TStringList;
+constructor TCommit.Create(SvnClient: THgClient; const DirectoryList: TStringList;
   RootType: TRootType);
 begin
   inherited Create;
@@ -384,7 +348,7 @@ end;
 
 procedure TCommit.DiffCallBack(const FileName: string);
 var
-  SvnItem: TSvnItem;
+  SvnItem: THgItem;
   Stream1: IStream;
   Stream2: IStream;
   TempStream: IStream;
@@ -393,9 +357,9 @@ var
   StreamLength: Largeint;
   Dummy: Largeint;
 begin
-  SvnItem := TSvnItem.Create(FSvnClient, nil, FileName, False, False, True);
+  SvnItem := THgItem.Create(FSvnClient, {nil, }FileName{, False, False, True});
   try
-    Rev := SvnItem.BaseRevision;
+    Rev := SvnItem.BaseChangeSetID;
     Stream1 := TIStreamAdapter.Create(TStringStream.Create(SvnItem.GetBaseFile), soOwned);
   finally
     SvnItem.Free;
@@ -432,10 +396,12 @@ end;
 
 function TCommit.FileColorCallBack(AItem: TSvnListViewItem): TColor;
 begin
-  Result := IDEClient.Colors.GetStatusColor(AItem.TextStatus);
+  //Result := IDEClient.Colors.GetStatusColor(AItem.TextStatus);
+  Result := clWindowText;
 end;
 
-procedure TCommit.PrepareFileList(FrameAdd: TRefreshProc; AModificationCallBack: TSvnStatusCallback; var AURL: string);
+procedure TCommit.PrepareFileList(FrameAdd: TRefreshProc; AModificationCallBack: THgStatusCallback; var AURL: string);
+{
 
   // make sure that all files/paths are versioned
   procedure CheckVersionProjectFiles(AFilesAndDirectoriesInRepo,
@@ -526,7 +492,7 @@ begin
         UnversionedFilesAndDirectories);
       for I := 0 to UnversionedFilesAndDirectories.Count - 1 do
         FrameAdd(TSvnListViewItem.Create(UnversionedFilesAndDirectories[I],
-          svnWcStatusUnversioned, UnversionedFilesAndDirectories.Objects[I] <> nil, False, ''));
+          svnWcStatusUnversioned, UnversionedFilesAndDirectories.Objects[I] <> nil, False));
     end;
     for I := 0 to FilesAndDirectoriesInRepo.Count - 1 do
       FSvnClient.GetModifications(FilesAndDirectoriesInRepo[I], AModificationCallBack, True,
@@ -534,7 +500,7 @@ begin
     if (FRootType = rtExpicitFiles) and (AddedDirectories.Count > 0) then
     begin
       for I := 0 to AddedDirectories.Count - 1 do
-        FrameAdd(TSvnListViewItem.Create(AddedDirectories[I], svnWcStatusAdded, True, False, ''));
+        FrameAdd(TSvnListViewItem.Create(AddedDirectories[I], svnWcStatusAdded, True, False));
       FilesAndDirectoriesInRepo.AddStrings(AddedDirectories);
     end;
     AURL := FSvnClient.GetBaseURL(FilesAndDirectoriesInRepo, TempBasePath);
@@ -542,6 +508,23 @@ begin
     FilesAndDirectoriesInRepo.Free;
     AddedDirectories.Free;
     UnversionedFilesAndDirectories.Free;
+  end;
+}
+var
+  I: Integer;
+  TempBasePath: string;
+  FilesAndDirectoriesInRepo: TStringList;
+begin
+  //TODO: add support for FRootType = rtExpicitFiles
+  if FDirectoryList.Count = 1 then
+    AURL := FDirectoryList[0];
+  FilesAndDirectoriesInRepo := TStringList.Create;
+  try
+    FilesAndDirectoriesInRepo.Assign(FDirectoryList);
+    for I := 0 to FilesAndDirectoriesInRepo.Count - 1 do
+      FSvnClient.GetModifications(FilesAndDirectoriesInRepo[I], AModificationCallBack);
+  finally
+    FilesAndDirectoriesInRepo.Free;
   end;
 end;
 
@@ -551,7 +534,7 @@ var
   RecentComments: TStringList;
   URL: string;
 begin
-  FSvnCommitFrame := TSvnCommitFrame(AFrame);
+  FSvnCommitFrame := THgCommitFrame(AFrame);
   Cursor := Screen.Cursor;
   Screen.Cursor := crHourGlass;
   Application.ProcessMessages;
@@ -559,6 +542,8 @@ begin
     FSvnCommitFrame.BeginUpdate;
     try
       PrepareFileList(FSvnCommitFrame.Add, ModificationCallBack, URL);
+      FSvnCommitFrame.AllowEmptyComment := False;
+      FSvnCommitFrame.SupportsExternals := False;
       FSvnCommitFrame.CheckForNoFilesVisible;
       FSvnCommitFrame.URL := URL;
       FSvnCommitFrame.CommitCallBack := CommitCallBack;
@@ -570,8 +555,6 @@ begin
       FSvnCommitFrame.GetFileStatusCallBack := GetFileStatusCallBack;
       FSvnCommitFrame.FileColorCallBack := FileColorCallBack;
       FSvnCommitFrame.RefreshCallBack := RefreshCallBack;
-      FSvnCommitFrame.AddToChangeListCallBack := AddToChangeListCallBack;
-      FSvnCommitFrame.RemoveFromChangeListCallBack := RemoveFromChangeListCallBack;
       if FFoundMissing then
         FSvnCommitFrame.HandleMissingFiles;
       RecentComments := TStringList.Create;
@@ -615,12 +598,12 @@ procedure TCommit.GetFileStatusCallBack(const FileName: string;
   var SvnListViewItem: TSvnListViewItem);
 begin
   FStatusItem := @SvnListViewItem;
-  FSvnClient.GetModifications(FileName, StatusCallBack, False);
+  FSvnClient.GetModifications(FileName, StatusCallBack);
 end;
 
 function TCommit.GetFrameClass: TCustomFrameClass;
 begin
-  Result := TSvnCommitFrame;
+  Result := THgCommitFrame;
 end;
 
 function TCommit.GetImageIndex: Integer;
@@ -639,25 +622,25 @@ begin
   Result := sSvnCommitView;
 end;
 
-procedure TCommit.ModificationCallBack(Sender: TObject; Item: TSvnItem;
+procedure TCommit.ModificationCallBack(Sender: TObject; Item: THgItem;
   var Cancel: Boolean);
 begin
-  if (FRootType <> rtExpicitFiles) or (not FSvnCommitFrame.Found(Item.PathName)) then
+  if (FRootType <> rtExpicitFiles) or (not FSvnCommitFrame.Found(Item.FileName)) then
   begin
-    if Item.TextStatus = svnWcStatusMissing then
+    if Item.Status = gsMissing then
       FFoundMissing := True;
-    FSvnCommitFrame.Add(TSvnListViewItem.Create(Item.PathName, Item.TextStatus, Item.IsDirectory, Item.Copied, Item.ChangeList));
+    FSvnCommitFrame.Add(TSvnListViewItem.Create(Item.FileName, Item.Status, False, False));
   end;
 end;
 
-procedure TCommit.ModificationRefreshCallBack(Sender: TObject; Item: TSvnItem;
+procedure TCommit.ModificationRefreshCallBack(Sender: TObject; Item: THgItem;
   var Cancel: Boolean);
 begin
-  if (FRootType <> rtExpicitFiles) or (not FSvnCommitFrame.Found(Item.PathName)) then
+  if (FRootType <> rtExpicitFiles) or (not FSvnCommitFrame.Found(Item.FileName)) then
   begin
-    if Item.TextStatus = svnWcStatusMissing then
+    if Item.Status = gsMissing then
       FFoundMissing := True;
-    FSvnCommitFrame.RefreshAdd(TSvnListViewItem.Create(Item.PathName, Item.TextStatus, Item.IsDirectory, Item.Copied, Item.ChangeList));
+    FSvnCommitFrame.RefreshAdd(TSvnListViewItem.Create(Item.FileName, Item.Status, False, False));
   end;
 end;
 
@@ -670,62 +653,25 @@ begin
     FSvnCommitFrame.HandleMissingFiles(True);
 end;
 
-function TCommit.RemoveFromChangeListCallBack(const FileName: string): Boolean;
-var
-  PathNames: TStringList;
-begin
-  Result := False;
-  try
-    PathNames := TStringList.Create;
-    try
-      PathNames.Add(FileName);
-      FSvnClient.RemoveFromChangeList(PathNames);
-    finally
-      PathNames.Free;
-    end;
-    Result := True;
-  except
-    if not HandleSvnException(ExceptObject) then
-      raise;
-  end;
-end;
-
 procedure TCommit.ResolveCallBack(const FileName: string);
 begin
-  try
-    FSvnClient.Resolved(FileName);
-  except
-    if not HandleSvnException(ExceptObject) then
-      raise;
-  end;
+  //no idea if Mercurial has conflicts
 end;
 
-function TCommit.RevertCallBack(const FileName: string; ARecursive: Boolean; var ANewTextStatus: TSvnWCStatusKind): Boolean;
+function TCommit.RevertCallBack(const FileName: string; ARecursive: Boolean; var ANewTextStatus: THgStatus): Boolean;
 var
-  FileNameList: TStringList;
   Module: IOTAModule;
-  SvnItem: TSvnItem;
+  SvnItem: THgItem;
 begin
-  Result := False;
-  FileNameList := TStringList.Create;
+  Result := FSvnClient.Revert(FileName);
+  if Result then
+    SvnMessageView.WriteMessage(FileName, Format('Reverted: %s', [FileName]));//str
+  SvnItem := THgItem.Create(FSvnClient, FileName);
   try
-    FileNameList.Add(FileName);
-    try
-      FSvnClient.Revert(FileNameList, SvnMessageView.MessageViewCallBack, ARecursive);
-      SvnItem := TSvnItem.Create(FSvnClient, nil, FileName);
-      try
-        SvnItem.ReloadStatus;
-        ANewTextStatus := SvnItem.TextStatus;
-      finally
-        SvnItem.Free;
-      end;
-      Result := True;
-    except
-      if not HandleSvnException(ExceptObject) then
-        raise;
-    end;
+    SvnItem.LoadStatus;
+    ANewTextStatus := SvnItem.Status;
   finally
-    FileNameList.Free;
+    SvnItem.Free;
   end;
   Module := (BorlandIDEServices as IOTAModuleServices).FindModule(FileName);
   if Module <> nil then
@@ -737,10 +683,10 @@ begin
   // Not used
 end;
 
-procedure TCommit.StatusCallBack(Sender: TObject; Item: TSvnItem;
+procedure TCommit.StatusCallBack(Sender: TObject; Item: THgItem;
   var Cancel: Boolean);
 begin
-  FStatusItem^.NewValues(Item.PathName, Item.TextStatus, Item.IsDirectory, Item.Copied, Item.ChangeList);
+  FStatusItem^.NewValues(Item.FileName, Item.Status, False, False);
 end;
 
 function DoDeleteCommitListLocalHistory(CommitList: TStringList): Integer;
@@ -767,47 +713,28 @@ begin
   end;
 end;
 
-procedure DoCommit(const SvnClient: TSvnClient; const CommitList: TStringList;
+procedure DoCommit(const SvnClient: THgClient; const CommitList: TStringList;
   const Comment: string; const RecentComments: TStringList; ADeleteLocalHistory: Boolean);
 var
-  I: Integer;
-  S: string;
-  NeedToClean: Boolean;
+  Error: THgError;
 begin
   SvnMessageView.CheckMessageGroup(True);
   SaveRecentComments(RecentComments);
-  try
-    if SvnClient.Commit(CommitList, TrimRight(Comment), SvnMessageView.MessageViewCallBack) then
-    begin
-      SvnMessageView.WriteTitle(Format(sCommitCompleted, [SvnClient.LastCommitInfoRevision]));
-      if ADeleteLocalHistory then
-        DoDeleteCommitListLocalHistory(CommitList);
-    end;
-  except
-    if ExceptObject is ESvnError then
-    begin
-      S := '';
-      NeedToClean := False;
-      for I := 0 to ESvnError(ExceptObject).Count - 1 do
-      begin
-        S := S + ESvnError(ExceptObject).Messages[I] + sLineBreak;
-        if ESvnError(ExceptObject).ErrorCodes[I] = SVN_ERR_WC_LOCKED then  // Need to clean error
-        begin
-          S := S + sNeedToClean + sLineBreak + sRunClean + sLineBreak;
-          NeedToClean := True;
-        end;
-      end;
-      if NeedToClean then
-      begin
-        if MessageDlg(S, mtError, [mbYes, mbNo], 0) = mrYes then
-          DoClean(SvnClient, CommitList)
-      end
-      else
-        MessageDlg(ESvnError(ExceptObject).Message, mtError, [mbOK], 0);
-    end
-    else
-      raise;
-  end;
+  Error := SvnClient.Commit(CommitList, TrimRight(Comment));
+  if Error = hgeSuccess then
+  begin
+    SvnMessageView.WriteTitle(Format(sCommitCompleted, [SvnClient.LastCommitInfoChangeSetID]));
+    if ADeleteLocalHistory then
+      DoDeleteCommitListLocalHistory(CommitList);
+  end
+  else
+  if Error = hgeEmptyCommitMessage then
+    MessageDlg('Empty commit message', mtError, [mbOK], 0)//str
+  else
+  if Error = hgeNoUsernameSupplied then
+    MessageDlg('Username not configured', mtError, [mbOK], 0)
+  else
+    MessageDlg('unknown error', mtError, [mbOK], 0);
 end;
 
 procedure LoadRecentComments(const RecentComments: TStringList);

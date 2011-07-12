@@ -35,7 +35,7 @@
 {                                                                              }
 {******************************************************************************}
 
-unit SvnImages;
+unit HgImages;
 
 interface
 
@@ -50,7 +50,7 @@ type
     TypeName: array[0..MAX_PATH - 1] of Char;
   end;
 
-  TSvnImageModule = class(TDataModule)
+  THgImageModule = class(TDataModule)
     ShellImagesLarge: TImageList;
     ShellImagesSmall: TImageList;
     procedure DataModuleCreate(Sender: TObject);
@@ -63,7 +63,7 @@ type
   end;
 
 var
-  SvnImageModule: TSvnImageModule = nil;
+  HgImageModule: THgImageModule = nil;
 
 implementation
 
@@ -71,11 +71,11 @@ uses
   ComObj, ShellAPI, VerInsResources;
 
 {$R *.dfm}
-{.$R ..\resources\subversion.res}
+{.$R ..\resources\mercurial.res}
 
 // TDataSvnImages private
 
-procedure TSvnImageModule.ClearShellCache;
+procedure THgImageModule.ClearShellCache;
 var
   I: Integer;
 begin
@@ -86,7 +86,7 @@ end;
 
 // TDataSvnImages public
 
-function TSvnImageModule.GetShellImageIndex(const Path: string; Open: Boolean = False; Large: Boolean = False): Integer;
+function THgImageModule.GetShellImageIndex(const Path: string; Open: Boolean = False; Large: Boolean = False): Integer;
 const
   OpenFlags: array[Boolean] of Cardinal = (0, SHGFI_OPENICON);
   LargeFlags: array[Boolean] of Cardinal = (SHGFI_SMALLICON, 0);
@@ -167,14 +167,14 @@ end;
 
 // TDataSvnImages event handlers
 
-procedure TSvnImageModule.DataModuleCreate(Sender: TObject);
+procedure THgImageModule.DataModuleCreate(Sender: TObject);
 begin
   FShellCache := TStringList.Create;
   FShellCache.Duplicates := dupError;
   FShellCache.Sorted := True;
 end;
 
-procedure TSvnImageModule.DataModuleDestroy(Sender: TObject);
+procedure THgImageModule.DataModuleDestroy(Sender: TObject);
 begin
   ClearShellCache;
   FShellCache.Free;

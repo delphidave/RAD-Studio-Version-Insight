@@ -13,9 +13,7 @@
 {                                                                              }
 { The Original Code is delphisvn: Subversion plugin for CodeGear Delphi.       }
 {                                                                              }
-{ The Initial Developer of the Original Code is Embarcadero Technologies.      }
-{ Portions created by Ondrej Kelle are Copyright Ondrej Kelle. All rights      }
-{ reserved.                                                                    }
+{ The Initial Developer of the Original Code is Uwe Schuster.                  }
 {                                                                              }
 { Portions created or modified by Embarcadero Technologies are                 }
 { Copyright © 2010 Embarcadero Technologies, Inc. All Rights Reserved          }
@@ -30,49 +28,18 @@
 { Embarcadero Technologies                                                     }
 {                                                                              }
 {******************************************************************************}
-{                                                                              }
-{ This unit contains resource strings used by svnide package.                  }
-{                                                                              }
-{******************************************************************************}
-
-unit SvnIDEConst;
+unit HgUITypes;
 
 interface
 
-resourcestring
-  sLoadError = 'Can not load DLL';
-  sSubversion = 'Subversion';
-  sPMMCommit = 'Commit';
-  sPMMUpdate = 'Update';
-  sPMMClean = 'Clean';
-  sPMMSvnParent = 'Subversion';
-  sPMMLog = 'Show Log';
-  sPMMRootDir = 'From Repository Root';
-  sPMMProjectDir = 'From Project Directory';
-  sPMMExpicitFiles = 'Files in this Project';
-  sPMMRepo = 'Browse Repository';
-  sMenuAddToVersionControl = 'Subversion Import';
-  sMenuOpenFromVersionControl = 'Open From Subversion (Checkout)';
+type
+  TSvnEditAction = (seaUndo, seaRedo, seaCut, seaCopy, seaPaste, seaDelete, seaSelectAll,
+    seaUnknown);
 
-  sCommit = 'Commit';
-  sUpdated = 'Updated';
-  sUpdateCompletedAtRevision = 'At Revision: %d';
-  sCommited = 'Commited';
-  sCommitCompleted = 'Commit completed at revision: %d';
-  sCommitLoaded = 'A commit window is still open. Please close it if you wish to start a new commit.';
-  sNeedToClean = 'Run Subversion Clean to correct problem.';
-  sRunClean = 'Would you like to run Subversion Clean?';
-  sCleaning = 'Cleaning ';
-  sLog = 'Log';
-  sImport = 'Import';
-  sFilesUnderDir = 'All files under %s will be committed';
-  sWorking = '-Working';
-  sRepoBrowser = 'Repository Browser';
-  sVersionControlAddInOptionArea = 'Version Control';
-  sMergeDialogCaption = 'Merge revisions %s - %s of %s into %s';
-  sHead = 'HEAD';
-  sRetrievingFileRevision = 'Retrieving %s revision %d';
-  sSavingFileRevision = 'Saving %s revision %d';
+  TSvnEditStates = (sesCanUndo, sesCanRedo, sesCanCut, sesCanCopy, sesCanPaste,
+    sesCanDelete, sesCanSelectAll);
+
+  TSvnEditState = set of TSvnEditStates;
 
 implementation
 

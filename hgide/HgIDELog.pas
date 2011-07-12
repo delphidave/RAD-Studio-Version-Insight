@@ -30,57 +30,57 @@
 { Embarcadero Technologies                                                     }
 {                                                                              }
 {******************************************************************************}
-unit SvnIDELog;
+unit HgIDELog;
 
 interface
 
-uses Classes, SvnIDEMenus, SvnIDEClient;
+uses Classes, HgIDEMenus, HgIDEClient;
 
 type
-  TBaseLogSvnMenu = class(TSvnMenu)
+  TBaseLogHgMenu = class(THgMenu)
   protected
     FRootType: TRootType;
-    FSvnIDEClient: TSvnIDEClient;
+    FHgIDEClient: THgIDEClient;
     procedure Execute(const MenuContextList: IInterfaceList); override;
   public
-    constructor Create(ASvnIDEClient: TSvnIDEClient);
+    constructor Create(AHgIDEClient: THgIDEClient);
   end;
 
-  TParentLogSvnMenu = class(TSvnMenu)
+  TParentLogHgMenu = class(THgMenu)
   protected
     function GetImageIndex: Integer; override;
   public
     constructor Create;
   end;
 
-  TRootDirLogSvnMenu = class(TBaseLogSvnMenu)
+  TRootDirLogHgMenu = class(TBaseLogHgMenu)
   public
-    constructor Create(ASvnIDEClient: TSvnIDEClient);
+    constructor Create(AHgIDEClient: THgIDEClient);
   end;
 
-  TProjectDirLogSvnMenu = class(TBaseLogSvnMenu)
+  TProjectDirLogHgMenu = class(TBaseLogHgMenu)
   public
-    constructor Create(ASvnIDEClient: TSvnIDEClient);
+    constructor Create(AHgIDEClient: THgIDEClient);
   end;
 
-  TDirLogSvnMenu = class(TBaseLogSvnMenu)
+  TDirLogHgMenu = class(TBaseLogHgMenu)
   protected
     function GetImageIndex: Integer; override;
   public
-    constructor Create(ASvnIDEClient: TSvnIDEClient);
+    constructor Create(AHgIDEClient: THgIDEClient);
   end;
 
  procedure Register;
 
 implementation
 
-uses SysUtils, SvnIDEConst, ToolsApi, SvnClientLog, SvnClient, DesignIntf, Forms,
-  SvnUITypes, SvnIDEUtils, ExtCtrls, Graphics, SvnIDETypes, RegularExpressions,
-  SvnIDEIcons;
+uses SysUtils, HgIDEConst, ToolsApi, HgClientLog, HgClient, DesignIntf, Forms,
+  HgUITypes, HgIDEUtils, ExtCtrls, Graphics, HgIDETypes, RegularExpressions,
+  HgIDEIcons;
 
 const
   sPMVLogParent = 'SvnLogParent';
-  sLogView = 'LogView';
+  sLogView = 'LogViewHg';
   sPMVRootDirLog = 'RootDirLog';
   sPMVProjectDirLog = 'ProjectDirLog';
   sPMVExpicitFilesLog = 'ExpicitFilesLog';
@@ -91,25 +91,12 @@ var
 
 type
   TLogView = class(TInterfacedObject, INTACustomEditorView,
-    INTACustomEditorView150, IAsyncUpdate)
+    INTACustomEditorView150, IHgAsyncUpdate)
   protected
-    type
-      TBugIDParser = class(TObject)
-      private
-        FBugTraqLogRegEx: string;
-        FRegEx1: TRegEx;
-        FRegEx2: TRegEx;
-        procedure SetBugTraqLogRegEx(const Value: string);
-      public
-        constructor Create;
-        function GetBugID(const ALogMessage: string): string;
-        property BugTraqLogRegEx: string read FBugTraqLogRegEx write SetBugTraqLogRegEx;
-      end;
     var
-      FBugIDParser: TBugIDParser;
-      FSvnClient: TSvnClient;
-      FSvnLogFrame: TSvnLogFrame;
-      FSvnItem: TSvnItem;
+      FHgClient: THgClient;
+      FSvnLogFrame: THgLogFrame;
+      FHgItem: THgItem;
       FRootPath: string;
       FFirst: Integer;
     { INTACustomEditorView }
@@ -130,7 +117,7 @@ type
     function GetTabHintText: string;
     procedure Close(var Allowed: Boolean);
     { AsyncUpdate }
-    procedure UpdateHistoryItems(SvnItem: TSvnItem; FirstNewIndex, LastNewIndex: Integer;
+    procedure UpdateHistoryItems(HgItem: THgItem; FirstNewIndex, LastNewIndex: Integer;
       ForceUpdate: Boolean);
     procedure Completed;
     { CallBacks }
@@ -139,24 +126,21 @@ type
     procedure ReverseMergeCallBack(const APathName: string; ARevision1, ARevision2: Integer);
     procedure CompareRevisionCallBack(AFileList: TStringList; ARevision1, ARevision2: Integer);
     procedure SaveRevisionCallBack(AFileList: TStringList; ARevision: Integer; const ADestPath: string);
-    function UpdateLogMessageCallBack(ARevision: Integer; const ALogMessage: string): Boolean;
-    { Misc }
-    function GetBugTraqLogRegEx(APath: string): string;
   public
-    constructor Create(SvnClient: TSvnClient; const ARootPath: string);
+    constructor Create(HgClient: THgClient; const ARootPath: string);
     destructor Destroy; override;
   end;
 
 { TBaseLogSvnMenu }
 
-constructor TBaseLogSvnMenu.Create(ASvnIDEClient: TSvnIDEClient);
+constructor TBaseLogHgMenu.Create(AHgIDEClient: THgIDEClient);
 begin
   inherited;
   FParent := sPMVLogParent;
-  FSvnIDEClient := ASvnIDEClient;
+  FHgIDEClient := AHgIDEClient;
 end;
 
-procedure TBaseLogSvnMenu.Execute(const MenuContextList: IInterfaceList);
+procedure TBaseLogHgMenu.Execute(const MenuContextList: IInterfaceList);
 var
   RootPath: string;
   MenuContext: IOTAMenuContext;
@@ -164,7 +148,7 @@ begin
   if Supports(MenuContextList[0], IOTAMenuContext, MenuContext) then
   begin
     if FRootType = rtRootDir then
-      RootPath := RootDirectory(FSvnIDEClient.SvnClient, MenuContext.Ident)
+      RootPath := RootDirectory(FHgIDEClient.HgClient, MenuContext.Ident)
     else
     if FRootType = rtProjectDir then
       RootPath := ExtractFilePath(MenuContext.Ident)
@@ -176,33 +160,28 @@ begin
     //TODO: check if path is not empty and is versioned
     //TODO: check if there is already a Log view
     // (otherwise you will currently receive an "A component named SvnLogFrame already exists." exception)
-    LogView := TLogView.Create(FSvnIDEClient.SvnClient, RootPath);
+    LogView := TLogView.Create(FHgIDEClient.HgClient, RootPath);
     (BorlandIDEServices as IOTAEditorViewServices).ShowEditorView(LogView);
   end;
 end;
 
 { TParentLogSvnMenu }
 
-constructor TParentLogSvnMenu.Create;
+constructor TParentLogHgMenu.Create;
 begin
   inherited Create(nil);
   FCaption := sPMMLog;
   FVerb := sPMVLogParent;
-  FParent := sPMVSvnParent;
+  FParent := sPMVHgParent;
   FPosition := pmmpParentLogSvnMenu;
   FHelpContext := 0;
 end;
 
-function TParentLogSvnMenu.GetImageIndex: Integer;
-begin
-  Result := LogImageIndex;
-end;
-
 { TRootDirLogSvnMenu }
 
-constructor TRootDirLogSvnMenu.Create(ASvnIDEClient: TSvnIDEClient);
+constructor TRootDirLogHgMenu.Create(AHgIDEClient: THgIDEClient);
 begin
-  inherited Create(ASvnIDEClient);
+  inherited Create(AHgIDEClient);
   FRootType := rtRootDir;
   FCaption := sPMMRootDir;
   FVerb := sPMVRootDirLog;
@@ -212,9 +191,9 @@ end;
 
 { TProjectDirLogSvnMenu }
 
-constructor TProjectDirLogSvnMenu.Create(ASvnIDEClient: TSvnIDEClient);
+constructor TProjectDirLogHgMenu.Create(AHgIDEClient: THgIDEClient);
 begin
-  inherited Create(ASvnIDEClient);
+  inherited Create(AHgIDEClient);
   FRootType := rtProjectDir;
   FCaption := sPMMProjectDir;
   FVerb := sPMVProjectDirLog;
@@ -222,20 +201,20 @@ begin
   FHelpContext := 0;
 end;
 
-{ TDirLogSvnMenu }
+{ TDirLogHgMenu }
 
-constructor TDirLogSvnMenu.Create(ASvnIDEClient: TSvnIDEClient);
+constructor TDirLogHgMenu.Create(AHgIDEClient: THgIDEClient);
 begin
-  inherited Create(ASvnIDEClient);
+  inherited Create(AHgIDEClient);
   FRootType := rtDir;
-  FParent := sPMVSvnParent;
+  FParent := sPMVHgParent;
   FCaption := sPMMLog;
   FVerb := sPMVDirLog;
   FPosition := pmmpProjectDirLogSvnMenu;
   FHelpContext := 0;
 end;
 
-function TDirLogSvnMenu.GetImageIndex: Integer;
+function TDirLogHgMenu.GetImageIndex: Integer;
 begin
   Result := LogImageIndex;
 end;
@@ -262,19 +241,12 @@ procedure TLogView.CompareRevisionCallBack(AFileList: TStringList; ARevision1,
 var
   I: Integer;
   CompareRevisionThread: TCompareRevisionThread;
-  URL, RootURL, Path, PathName: string;
+  RootPath: string;
 begin
   CompareRevisionThread := TCompareRevisionThread.Create;
-  URL := IDEClient.SvnClient.FindRepository(FRootPath);
-  RootURL := IDEClient.SvnClient.FindRepositoryRoot(FRootPath);
-  Path := SvnExcludeTrailingPathDelimiter(IDEClient.SvnClient.NativePathToSvnPath(FRootPath));
+  RootPath := IDEClient.HgClient.FindRepositoryRoot(FRootPath) + '\'; //TODO:1
   for I := 0 to AFileList.Count - 1 do
-  begin
-    PathName := AFileList[I];
-    if URL <> RootURL then
-      Delete(PathName, 1, Length(URL) - Length(RootURL));
-    CompareRevisionThread.AddFile(Path + PathName, ARevision1, ARevision2);
-  end;
+    CompareRevisionThread.AddFile(RootPath + AFileList[I], ARevision1, ARevision2);
   CompareRevisionThread.Start;
 end;
 
@@ -284,13 +256,11 @@ begin
     FSvnLogFrame.NextCompleted;
 end;
 
-constructor TLogView.Create(SvnClient: TSvnClient; const ARootPath: string);
+constructor TLogView.Create(HgClient: THgClient; const ARootPath: string);
 begin
   inherited Create;
-  FSvnClient := SvnClient;
+  FHgClient := HgClient;
   FRootPath := ARootPath;
-  FBugIDParser := TBugIDParser.Create;
-  FBugIDParser.BugTraqLogRegEx := GetBugTraqLogRegEx(ARootPath);
 end;
 
 procedure TLogView.DeselectView;
@@ -300,9 +270,8 @@ end;
 
 destructor TLogView.Destroy;
 begin
-  FBugIDParser.Free;
-  if FSvnItem <> nil then
-    FSvnItem.Free;
+  if FHgItem <> nil then
+    FHgItem.Free;
   inherited;
 end;
 
@@ -321,20 +290,25 @@ end;
 
 function TLogView.FileColorCallBack(Action: Char): TColor;
 begin
-  Result := IDEClient.Colors.GetLogActionColor(Action);
+//  Result := IDEClient.Colors.GetLogActionColor(Action);
+  Result := clWindowText;
 end;
 
 procedure TLogView.FrameCreated(AFrame: TCustomFrame);
 var
   URL, RootURL, RootRelativePath: string;
 begin
-  FSvnLogFrame := TSvnLogFrame(AFrame);
-  FSvnLogFrame.FileColorCallBack := FileColorCallBack;
+  FSvnLogFrame := THgLogFrame(AFrame);
+
+  FHgItem := THgItem.Create(FHgClient, FRootPath);
+  LoadRevisionsCallBack(-1, -1, 100);
+
+  //FSvnLogFrame.FileColorCallBack := FileColorCallBack;
   FSvnLogFrame.LoadRevisionsCallBack := LoadRevisionsCallBack;
-  FSvnLogFrame.ReverseMergeCallBack := ReverseMergeCallBack;
+  //FSvnLogFrame.ReverseMergeCallBack := ReverseMergeCallBack;
   FSvnLogFrame.CompareRevisionCallBack := CompareRevisionCallBack;
   FSvnLogFrame.SaveRevisionCallBack := SaveRevisionCallBack;
-  FSvnLogFrame.UpdateLogMessageCallBack := UpdateLogMessageCallBack;
+  {
   FSvnLogFrame.RootPath := ExcludeTrailingPathDelimiter(FRootPath);
   URL := IDEClient.SvnClient.FindRepository(FRootPath);
   RootURL := IDEClient.SvnClient.FindRepositoryRoot(FRootPath);
@@ -351,31 +325,7 @@ begin
   Application.ProcessMessages;
   FSvnLogFrame.StartAsync;
   FSvnItem.AsyncReloadHistory;
-  FSvnLogFrame.BaseRevision := IntToStr(IDEClient.SvnClient.GetMaxRevision(FRootPath));
-end;
-
-function TLogView.GetBugTraqLogRegEx(APath: string): string;
-var
-  I: Integer;
-  SvnItem: TSvnItem;
-begin
-  while (Result = '') and FSvnClient.IsPathVersioned(APath) do
-  begin
-    SvnItem := TSvnItem.Create(FSvnClient, nil, APath);
-    try
-      SvnItem.PropValDelimiter := #10;
-      for I := 0 to SvnItem.PropCount - 1 do
-        if SvnItem.PropNames[I] = 'bugtraq:logregex' then // do not localize
-        begin
-          Result := SvnItem.PropValueFromIndex[I];
-          Break;
-        end;
-    finally
-      SvnItem.Free;
-    end;
-    if Result = '' then
-      APath := ExtractFilePath(ExcludeTrailingPathDelimiter(APath));
-  end;
+  }
 end;
 
 function TLogView.GetCanCloneView: Boolean;
@@ -402,7 +352,7 @@ end;
 
 function TLogView.GetFrameClass: TCustomFrameClass;
 begin
-  Result := TSvnLogFrame;
+  Result := THgLogFrame;
 end;
 
 function TLogView.GetImageIndex: Integer;
@@ -425,16 +375,20 @@ procedure TLogView.LoadRevisionsCallBack(FirstRevision, LastRevision, Count: Int
 begin
   if FirstRevision = -1 then
     FFirst := 0;
-  FSvnItem.LogLimit := Count;
-  FSvnItem.LogFirstRev := FirstRevision;
-  FSvnItem.LogLastRev := LastRevision;
-  FSvnItem.AsyncUpdate := Self;
+  FHgItem.LogLimit := Count;
+  FHgItem.LogFirstRev := FirstRevision;
+  FHgItem.LogLastRev := LastRevision;
+  FHgItem.IncludeChangedFiles := True;
+  FHgItem.AsyncUpdate := Self;
+  {
   FSvnLogFrame.StartAsync;
-  FSvnItem.AsyncReloadHistory;
+  }
+  FHgItem.AsyncReloadHistory;
 end;
 
 procedure TLogView.ReverseMergeCallBack(const APathName: string; ARevision1,
   ARevision2: Integer);
+{
 var
   URL, RootURL, Path, PathName: string;
 begin
@@ -455,6 +409,8 @@ begin
     Path := Path + PathName;
   end;
   TMergeThread.Create(IDEClient, URL, Path, ARevision1, ARevision2);
+}
+begin
 end;
 
 procedure TLogView.SaveRevisionCallBack(AFileList: TStringList;
@@ -462,19 +418,12 @@ procedure TLogView.SaveRevisionCallBack(AFileList: TStringList;
 var
   I: Integer;
   SaveRevisionThread: TSaveRevisionThread;
-  URL, RootURL, Path, PathName: string;
+  RootPath: string;
 begin
   SaveRevisionThread := TSaveRevisionThread.Create(ARevision, ADestPath);
-  URL := IDEClient.SvnClient.FindRepository(FRootPath);
-  RootURL := IDEClient.SvnClient.FindRepositoryRoot(FRootPath);
-  Path := SvnExcludeTrailingPathDelimiter(IDEClient.SvnClient.NativePathToSvnPath(FRootPath));
+  RootPath := IDEClient.HgClient.FindRepositoryRoot(FRootPath) + '\'; //TODO:1
   for I := 0 to AFileList.Count - 1 do
-  begin
-    PathName := AFileList[I];
-    if URL <> RootURL then
-      Delete(PathName, 1, Length(URL) - Length(RootURL));
-    SaveRevisionThread.AddFile(Path + PathName);
-  end;
+    SaveRevisionThread.AddFile(RootPath + AFileList[I]);
   SaveRevisionThread.Start;
 end;
 
@@ -483,13 +432,12 @@ begin
   // Not used
 end;
 
-procedure TLogView.UpdateHistoryItems(SvnItem: TSvnItem; FirstNewIndex, LastNewIndex: Integer;
+procedure TLogView.UpdateHistoryItems(HgItem: THgItem; FirstNewIndex, LastNewIndex: Integer;
   ForceUpdate: Boolean);
 var
   I: Integer;
-  HistoryItem: TSvnHistoryItem;
+  HistoryItem: THgHistoryItem;
   CanUpdate: Boolean;
-  BugID: string;
 begin
   CanUpdate := (FirstNewIndex = 0) or ((LastNewIndex - FFirst <> 0 ) and ((LastNewIndex - FFirst) Mod 20 = 0));
   if CanUpdate or ForceUpdate then
@@ -498,81 +446,15 @@ begin
     try
       for I := FFirst to LastNewIndex do
       begin
-        HistoryItem := SvnItem.HistoryItems[I];
-        if FBugIDParser.BugTraqLogRegEx <> '' then
-          BugID := FBugIDParser.GetBugID(HistoryItem.LogMessage)
-        else
-          BugID := '';
-        FSvnLogFrame.AddRevisions(HistoryItem.Revision, HistoryItem.Time,
-          HistoryItem.Author, HistoryItem.LogMessage, BugID, HistoryItem.ChangeFiles);
+        HistoryItem := HgItem.HistoryItems[I];
+        FSvnLogFrame.AddRevisions(HistoryItem.ChangeSetID, HistoryItem.Date,
+          HistoryItem.Author, HistoryItem.Description, '', HistoryItem.ChangedFiles);
       end;
     finally
       FSvnLogFrame.EndUpdate;
     end;
     FFirst := LastNewIndex + 1;
     Application.ProcessMessages;
-  end;
-end;
-
-function TLogView.UpdateLogMessageCallBack(ARevision: Integer; const ALogMessage: string): Boolean;
-var
-  URL, RootURL: string;
-begin
-  Result := False;
-  try
-    URL := IDEClient.SvnClient.FindRepository(FRootPath);
-    RootURL := IDEClient.SvnClient.FindRepositoryRoot(FRootPath);
-    IDEClient.SvnClient.SetRevisionProperty(RootURL, ARevision, 'svn:log', ALogMessage);
-    Result := True;
-  except
-    if not HandleSvnException(ExceptObject) then
-      raise;
-  end;
-end;
-
-{ TLogView.TBugIDParser }
-
-constructor TLogView.TBugIDParser.Create;
-begin
-  FRegEx1 := TRegEx.Create('');
-  FRegEx2 := TRegEx.Create('');
-end;
-
-function TLogView.TBugIDParser.GetBugID(const ALogMessage: string): string;
-var
-  Match, MatchNr: TMatch;
-  BugIDs: TStringList;
-begin
-  BugIDs := TStringList.Create;
-  try
-    BugIDs.Duplicates := dupIgnore;
-    BugIDs.Sorted := True;
-    Match := FRegEx1.Match(ALogMessage);
-    while Match.Success do
-    begin
-      MatchNr := FRegEx2.Match(Match.Value);
-      BugIDs.Add(MatchNr.Value);
-      Match := Match.NextMatch;
-    end;
-    Result := TrimRight(StringReplace(BugIDs.Text, #13#10, ' ', [rfReplaceAll]));
-  finally
-    BugIDs.Free;
-  end;
-end;
-
-procedure TLogView.TBugIDParser.SetBugTraqLogRegEx(const Value: string);
-var
-  P: Integer;
-begin
-  if FBugTraqLogRegEx <> Value then
-  begin
-    P := Pos(#10, Value);
-    if P > 0 then
-    begin
-      FBugTraqLogRegEx := Value;
-      FRegEx1 := TRegEx.Create(Copy(Value, 1, P - 1));
-      FRegEx2 := TRegEx.Create(Copy(Value, P + 1, MaxInt));
-    end;
   end;
 end;
 
@@ -584,6 +466,11 @@ end;
 procedure Register;
 begin
   (BorlandIDEServices as IOTAEditorViewServices).RegisterEditorView(sLogView, GetView);
+end;
+
+function TParentLogHgMenu.GetImageIndex: Integer;
+begin
+  Result := LogImageIndex;
 end;
 
 initialization

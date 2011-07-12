@@ -30,7 +30,7 @@
 { Embarcadero Technologies                                                     }
 {                                                                              }
 {******************************************************************************}
-unit SvnIDEMessageView;
+unit HgIDEMessageView;
 
 interface
 
@@ -38,7 +38,7 @@ uses
   {$IFDEF TOOLSPROAPI}
   ToolsProAPI,
   {$ENDIF TOOLSPROAPI}
-  ToolsApi, svn_client;
+  ToolsAPI;
 
 type
   TSvnMessageView = class(TInterfacedObject, IOTAMessageNotifier)
@@ -59,12 +59,7 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure CheckMessageGroup(ClearMessages: Boolean = False);
-    procedure MessageViewCallBack(Sender: TObject; const Path,
-      MimeType: string; Action: TSvnWcNotifyAction; Kind: TSvnNodeKind;
-      ContentState, PropState: TSvnWCNotifyState; Revision: TSvnRevNum;
-      var Cancel: Boolean);
-    procedure WriteMessage(const AFileName: string; AAction: TSvnWcNotifyAction;
-      ContentState: TSvnWCNotifyState = svnWcNotifyStateInapplicable);
+    procedure WriteMessage(const AFileName, AText: string);
     procedure WriteTitle(const TitleMessage: string);
     property MessageGroup: IOTAMessageGroup read GetMessageGroup;
   end;
@@ -73,8 +68,7 @@ type
     IOTACustomMessage100)
   private
     FFileName: string;
-    FAction: TSvnWcNotifyAction;
-    FContentState: TSvnWCNotifyState;
+    FText: string;
     { IOTACustomMessage }
     function GetColumnNumber: Integer;
     function GetFileName: string;
@@ -91,8 +85,7 @@ type
     procedure TrackSource(var DefaultHandling: Boolean);
     procedure GotoSource(var DefaultHandling: Boolean);
   public
-    constructor Create(const AFileName: string; AAction: TSvnWcNotifyAction;
-      AContentState: TSvnWCNotifyState);
+    constructor Create(const AFileName, AText: string);
   end;
 
 var
@@ -100,7 +93,8 @@ var
 
 implementation
 
-uses SysUtils, SvnClient, SvnIDEConst, SvnIDEIcons;
+uses
+  SysUtils, HgIDEConst, HgIDEIcons;
 
 { TSvnMessage }
 
@@ -110,13 +104,11 @@ begin
   Result := DefaultHandling;
 end;
 
-constructor TSvnMessage.Create(const AFileName: string; AAction: TSvnWcNotifyAction;
-  AContentState: TSvnWCNotifyState);
+constructor TSvnMessage.Create(const AFileName, AText: string);
 begin
   inherited Create;
-  FFileName := StringReplace(AFileName, '/', '\', [rfReplaceAll]);
-  FAction := AAction;
-  FContentState := AContentState;
+  FFileName := AFileName;
+  FText := AText;
 end;
 
 function TSvnMessage.GetChild(Index: Integer): IOTACustomMessage50;
@@ -145,18 +137,8 @@ begin
 end;
 
 function TSvnMessage.GetLineText: string;
-var
-  Action: string;
-  ContentState: string;
 begin
-  Action := NotifyActionStr(FAction);
-  if FContentState in [svnWcNotifyStateInapplicable, svnWcNotifyStateUnknown] then
-    Result := Format('%s: %s', [Action, FFileName])
-  else
-  begin
-    ContentState := NotifyStateStr(FContentState);
-    Result := Format('%s, %s: %s', [Action, ContentState, FFileName]);
-  end;
+  Result := FText;
 end;
 
 procedure TSvnMessage.GotoSource(var DefaultHandling: Boolean);
@@ -190,15 +172,15 @@ procedure TSvnMessageView.CheckMessageGroup(ClearMessages: Boolean);
 begin
   if not Assigned(FMessageGroup) then
   begin
-    FMessageGroup := (BorlandIDEServices as IOTAMessageServices).GetGroup(sSubversion);
+    FMessageGroup := (BorlandIDEServices as IOTAMessageServices).GetGroup(sMercurial);
     if not Assigned(FMessageGroup) then
     begin
       {$IFDEF TOOLSPROAPI}
       if Supports(BorlandIDEServices, IOTAProMessageServices) then
-        FMessageGroup := (BorlandIDEServices as IOTAProMessageServices).AddMessageGroup(sSubversion, SubversionMessageViewImageIndex)
+        FMessageGroup := (BorlandIDEServices as IOTAProMessageServices).AddMessageGroup(sMercurial, MercurialMessageViewImageIndex)
       else
       {$ENDIF TOOLSPROAPI}
-        FMessageGroup := (BorlandIDEServices as IOTAMessageServices).AddMessageGroup(sSubversion);
+        FMessageGroup := (BorlandIDEServices as IOTAMessageServices).AddMessageGroup(sMercurial);
       FMessageGroup.AutoScroll := True;
     end;
   end;
@@ -236,16 +218,8 @@ end;
 
 procedure TSvnMessageView.MessageGroupDeleted(const Group: IOTAMessageGroup);
 begin
-  if Group.Name = sSubversion then
+  if Group.Name = sMercurial then
     FMessageGroup := nil;
-end;
-
-procedure TSvnMessageView.MessageViewCallBack(Sender: TObject; const Path,
-  MimeType: string; Action: TSvnWcNotifyAction; Kind: TSvnNodeKind;
-  ContentState, PropState: TSvnWCNotifyState; Revision: TSvnRevNum;
-  var Cancel: Boolean);
-begin
-  WriteMessage(Path, Action);
 end;
 
 procedure TSvnMessageView.Modified;
@@ -253,12 +227,11 @@ begin
 
 end;
 
-procedure TSvnMessageView.WriteMessage(const AFileName: string;
-  AAction: TSvnWcNotifyAction; ContentState: TSvnWCNotifyState);
+procedure TSvnMessageView.WriteMessage(const AFileName, AText: string);
 begin
   CheckMessageGroup;
   (BorlandIDEServices as IOTAMessageServices).
-    AddCustomMessage(TSvnMessage.Create(AFileName, AAction, ContentState), FMessageGroup);
+    AddCustomMessage(TSvnMessage.Create(AFileName, AText), FMessageGroup);
 end;
 
 procedure TSvnMessageView.WriteTitle(const TitleMessage: string);

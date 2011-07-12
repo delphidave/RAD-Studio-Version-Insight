@@ -30,50 +30,85 @@
 { Embarcadero Technologies                                                     }
 {                                                                              }
 {******************************************************************************}
-{                                                                              }
-{ This unit contains resource strings used by svnide package.                  }
-{                                                                              }
-{******************************************************************************}
-
-unit SvnIDEConst;
+unit HgClientProjectSelect;
 
 interface
 
-resourcestring
-  sLoadError = 'Can not load DLL';
-  sSubversion = 'Subversion';
-  sPMMCommit = 'Commit';
-  sPMMUpdate = 'Update';
-  sPMMClean = 'Clean';
-  sPMMSvnParent = 'Subversion';
-  sPMMLog = 'Show Log';
-  sPMMRootDir = 'From Repository Root';
-  sPMMProjectDir = 'From Project Directory';
-  sPMMExpicitFiles = 'Files in this Project';
-  sPMMRepo = 'Browse Repository';
-  sMenuAddToVersionControl = 'Subversion Import';
-  sMenuOpenFromVersionControl = 'Open From Subversion (Checkout)';
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, ExtCtrls, ComCtrls, HgImages;
 
-  sCommit = 'Commit';
-  sUpdated = 'Updated';
-  sUpdateCompletedAtRevision = 'At Revision: %d';
-  sCommited = 'Commited';
-  sCommitCompleted = 'Commit completed at revision: %d';
-  sCommitLoaded = 'A commit window is still open. Please close it if you wish to start a new commit.';
-  sNeedToClean = 'Run Subversion Clean to correct problem.';
-  sRunClean = 'Would you like to run Subversion Clean?';
-  sCleaning = 'Cleaning ';
-  sLog = 'Log';
-  sImport = 'Import';
-  sFilesUnderDir = 'All files under %s will be committed';
-  sWorking = '-Working';
-  sRepoBrowser = 'Repository Browser';
-  sVersionControlAddInOptionArea = 'Version Control';
-  sMergeDialogCaption = 'Merge revisions %s - %s of %s into %s';
-  sHead = 'HEAD';
-  sRetrievingFileRevision = 'Retrieving %s revision %d';
-  sSavingFileRevision = 'Saving %s revision %d';
+type
+  THgProjectSelectDialog = class(TForm)
+    Names: TListView;
+    Panel1: TPanel;
+    Ok: TButton;
+    Cancel: TButton;
+    procedure NamesChange(Sender: TObject; Item: TListItem;
+      Change: TItemChange);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+  function SelectProject(var FileName: string; const ProjectNames,
+    ProjectGroupNames: TStringList): Boolean;
 
 implementation
+
+{$R *.dfm}
+
+const
+  ProjectGroupID = 0;
+  ProjectID = 1;
+
+function SelectProject(var FileName: string; const ProjectNames,
+  ProjectGroupNames: TStringList): Boolean;
+var
+  SvnProjectSelectDialog: THgProjectSelectDialog;
+  I: Integer;
+  Item: TListItem;
+begin
+  Result := False;
+  if (ProjectNames.Count = 0) and (ProjectGroupNames.Count = 0) then
+    Exit;
+  SvnProjectSelectDialog := THgProjectSelectDialog.Create(Application);
+  try
+    for I := 0 to ProjectGroupNames.Count - 1 do
+    begin
+      Item := SvnProjectSelectDialog.Names.Items.Add;
+      Item.Caption := ProjectGroupNames[I];
+      Item.GroupID := ProjectGroupID;
+      Item.ImageIndex := HgImageModule.GetShellImageIndex(ProjectGroupNames[I]);
+    end;
+    for I := 0 to ProjectNames.Count - 1 do
+    begin
+      Item := SvnProjectSelectDialog.Names.Items.Add;
+      Item.Caption := ProjectNames[I];
+      Item.GroupID := ProjectID;
+      Item.ImageIndex := HgImageModule.GetShellImageIndex(ProjectNames[I]);
+    end;
+    if SvnProjectSelectDialog.Names.Items.Count > 0 then
+      SvnProjectSelectDialog.Names.Selected := SvnProjectSelectDialog.Names.Items[0];
+    if SvnProjectSelectDialog.ShowModal = mrOk then
+    begin
+      if Assigned(SvnProjectSelectDialog.Names.Selected) then
+      begin
+        FileName := SvnProjectSelectDialog.Names.Selected.Caption;
+        Result := True
+      end;
+    end;
+  finally
+    SvnProjectSelectDialog.Free;
+  end;
+end;
+
+procedure THgProjectSelectDialog.NamesChange(Sender: TObject;
+  Item: TListItem; Change: TItemChange);
+begin
+  if Change = ctState then
+    Ok.Enabled := Assigned(Names.Selected);
+end;
 
 end.

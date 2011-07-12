@@ -30,7 +30,7 @@
 { Embarcadero Technologies                                                     }
 {                                                                              }
 {******************************************************************************}
-unit SvnIDEMenus;
+unit HgIDEMenus;
 
 interface
 
@@ -38,10 +38,10 @@ uses
   {$IFDEF TOOLSPROAPI}
   ToolsProAPI,
   {$ENDIF TOOLSPROAPI}
-  Classes, ToolsApi, SvnIDEClient, SvnClient;
+  Classes, ToolsApi, HgIDEClient, HgClient;
 
 const
-  sPMVSvnParent = 'SvnParent';
+  sPMVHgParent = 'HgParent';
 
 //  Menu Positions
 const
@@ -75,7 +75,7 @@ const
 
 
 type
-  TSvnMenu = class(TInterfacedObject, IOTALocalMenu, IOTAProjectManagerMenu
+  THgMenu = class(TInterfacedObject, IOTALocalMenu, IOTAProjectManagerMenu
     {$IFDEF TOOLSPROAPI}, IOTAProProjectManagerMenu155{$ENDIF})
   protected
     FCaption: string;
@@ -86,7 +86,7 @@ type
     FName: string;
     FParent: string;
     FPosition: Integer;
-    FSvnIDEClient: TSvnIDEClient;
+    FHgIDEClient: THgIDEClient;
     FVerb: string;
 
     {IOTANotifier}
@@ -123,32 +123,32 @@ type
     { IOTAProProjectManagerMenu155 }
     function GetImageIndex: Integer; virtual;
   public
-    constructor Create(ASvnIDEClient: TSvnIDEClient);
+    constructor Create(AHgIDEClient: THgIDEClient);
   end;
 
   TRootType = (rtRootDir, rtProjectDir, rtExpicitFiles, rtDir);
 
 procedure BuildFileList(const MenuContextList: IInterfaceList;
-  const DirectoryList: TStringList; const SvnClient: TSvnClient;
+  const DirectoryList: TStringList; const HgClient: THgClient;
   RootType: TRootType; var ProjectFound: Boolean);
-procedure RegisterMenus(ASvnIDEClient: TSvnIDEClient);
+procedure RegisterMenus(AHgIDEClient: THgIDEClient);
 procedure UnRegisterMenus;
-function RootDirectory(const SvnClient: TSvnClient; const Path: string): string;
+function RootDirectory(const HgClient: THgClient; const Path: string): string;
 
 
 implementation
 
-uses SysUtils, SvnIDEConst, SvnIDECommit, SvnIDEUpdate, SvnIDEClean, SvnIDELog,
-  SvnIDEImport, SvnIDECheckout, SvnIDERepoBrowser, SvnIDEIcons;
+uses SysUtils, HgIDEConst, HgIDECommit{, SvnIDEUpdate, SvnIDEClean}, HgIDELog{,
+  SvnIDEImport}, HgIDECheckout{, SvnIDERepoBrowser}, HgIDEIcons;
 
 const
-  sSubversionName = 'embarcadero.subversion';
+  sMercurialName = 'versioninsight.mercurial';
 
 type
-  TExecuteProc = procedure(SvnIDEClient: TSvnIDEClient;
+  TExecuteProc = procedure(HgIDEClient: THgIDEClient;
     const MenuContextList: IInterfaceList);
 
-  TSvnNotifier = class(TInterfacedObject, IOTAVersionControlNotifier,
+  THgNotifier = class(TInterfacedObject, IOTAVersionControlNotifier,
     IOTAVersionControlNotifier150 {$IFDEF TOOLSPROAPI}, IOTAProVersionControlNotifier155{$ENDIF})
     { IOTANotifier }
     procedure AfterSave;
@@ -176,14 +176,14 @@ type
     { Misc }
     procedure InitNonFileIdentifiers;
   protected
-    FSvnIDEClient: TSvnIDEClient;
+    FHgIDEClient: THgIDEClient;
     FNonFileIdentifiers: TStringList;
   public
-    constructor Create(const SvnIDEClient: TSvnIDEClient);
+    constructor Create(const HgIDEClient: THgIDEClient);
     destructor Destroy; override;
   end;
 
-  TParentSvnMenu = class(TSvnMenu)
+  TParentHgMenu = class(THgMenu)
   protected
     function GetImageIndex: Integer; override;
   public
@@ -195,32 +195,32 @@ var
   PMMExpicitFilesCommit, PMMFileCommit, PMMParentUpdate, PMMRootDirUpdate,
   PMMProjectDirUpdate, PMMExpicitFilesUpdate, PMMFileUpdate,
   PMMParentCleanSvnMenu, PMMRootDirCleanSvnMenu, PMMProjectDirCleanSvnMenu,
-  PMMParentLogSvnMenu, PMMRootDirLogSvnMenu, PMMProjectDirLogSvnMenu,
+  PMMParentLogHgMenu, PMMRootDirLogHgMenu, PMMProjectDirLogHgMenu,
   PMMParentRepo, PMMRootDirRepo, PMMProjectDirRepo, PMMFileRepoSvnMenu: IOTAProjectManagerMenu;
 
-  FBMMSvnParent, FBMMCommit, FBMMUpdate, FBMMLog, FBMMClean, FBMMRepo: IOTAProjectManagerMenu;
+  FBMMSvnParent, FBMMCommit, FBMMLog: IOTAProjectManagerMenu;
 
-function RootDirectory(const SvnClient: TSvnClient; const Path: string): string;
+function RootDirectory(const HgClient: THgClient; const Path: string): string;
 var
   RepoPath: string;
   TempPath: string;
 begin
   Result := ExtractFilePath(Path);
-  RepoPath := SvnClient.FindRepositoryRoot(Result);
+  RepoPath := HgClient.FindRepositoryRoot(Result);
   if RepoPath = '' then
   else
   begin
     TempPath := ExtractFilePath(ExcludeTrailingPathDelimiter(Result));
-    while RepoPath = SvnClient.FindRepositoryRoot(TempPath) do
+    while RepoPath = HgClient.FindRepositoryRoot(TempPath) do
     begin
       Result := TempPath;
       TempPath := ExtractFilePath(ExcludeTrailingPathDelimiter(Result));
     end;
   end;
- end;
+end;
 
 procedure BuildFileList(const MenuContextList: IInterfaceList;
-  const DirectoryList: TStringList; const SvnClient: TSvnClient;
+  const DirectoryList: TStringList; const HgClient: THgClient;
   RootType: TRootType; var ProjectFound: Boolean);
 var
   I: Integer;
@@ -251,7 +251,7 @@ begin
             case RootType of
               rtRootDir:
                 begin
-                  Path := RootDirectory(SvnClient, MenuContext.Ident);
+                  Path := RootDirectory(HgClient, MenuContext.Ident);
                   if Path = '' then
                     Path := ExtractFilePath(MenuContext.Ident);
                   DirectoryList.Add(Path);
@@ -278,22 +278,22 @@ begin
   end;
 end;
 
-{ TSvnMenu }
+{ THgMenu }
 
-procedure TSvnMenu.AfterSave;
+procedure THgMenu.AfterSave;
 begin
 
 end;
 
-procedure TSvnMenu.BeforeSave;
+procedure THgMenu.BeforeSave;
 begin
 
 end;
 
-constructor TSvnMenu.Create(ASvnIDEClient: TSvnIDEClient);
+constructor THgMenu.Create(AHgIDEClient: THgIDEClient);
 begin
   inherited Create;
-  FSvnIDEClient := ASvnIDEClient;
+  FHgIDEClient := AHgIDEClient;
   FParent := '';
   FChecked := False;
   FEnabled := True;
@@ -301,220 +301,217 @@ begin
   FName := '';
 end;
 
-procedure TSvnMenu.Destroyed;
+procedure THgMenu.Destroyed;
 begin
 
 end;
 
-procedure TSvnMenu.Execute(const MenuContextList: IInterfaceList);
+procedure THgMenu.Execute(const MenuContextList: IInterfaceList);
 begin
 
 end;
 
-function TSvnMenu.GetCaption: string;
+function THgMenu.GetCaption: string;
 begin
   Result := FCaption;
 end;
 
-function TSvnMenu.GetChecked: Boolean;
+function THgMenu.GetChecked: Boolean;
 begin
   Result := FChecked;
 end;
 
-function TSvnMenu.GetEnabled: Boolean;
+function THgMenu.GetEnabled: Boolean;
 begin
   Result := FEnabled;
 end;
 
-function TSvnMenu.GetHelpContext: Integer;
+function THgMenu.GetHelpContext: Integer;
 begin
   Result := FHelpContext;
 end;
 
-function TSvnMenu.GetImageIndex: Integer;
+function THgMenu.GetImageIndex: Integer;
 begin
   Result := -1;
 end;
 
-function TSvnMenu.GetIsMultiSelectable: Boolean;
+function THgMenu.GetIsMultiSelectable: Boolean;
 begin
   Result := FIsMultiSelectable;
 end;
 
-function TSvnMenu.GetName: string;
+function THgMenu.GetName: string;
 begin
   Result := FName;
 end;
 
-function TSvnMenu.GetParent: string;
+function THgMenu.GetParent: string;
 begin
   Result := FParent;
 end;
 
-function TSvnMenu.GetPosition: Integer;
+function THgMenu.GetPosition: Integer;
 begin
   Result := FPosition;
 end;
 
-function TSvnMenu.GetVerb: string;
+function THgMenu.GetVerb: string;
 begin
   Result := FVerb;
 end;
 
-procedure TSvnMenu.Modified;
+procedure THgMenu.Modified;
 begin
 
 end;
 
-function TSvnMenu.PostExecute(const MenuContextList: IInterfaceList): Boolean;
-begin
-  Result := True;
-end;
-
-function TSvnMenu.PreExecute(const MenuContextList: IInterfaceList): Boolean;
+function THgMenu.PostExecute(const MenuContextList: IInterfaceList): Boolean;
 begin
   Result := True;
 end;
 
-procedure TSvnMenu.SetCaption(const Value: string);
+function THgMenu.PreExecute(const MenuContextList: IInterfaceList): Boolean;
+begin
+  Result := True;
+end;
+
+procedure THgMenu.SetCaption(const Value: string);
 begin
   FCaption := Value;
 end;
 
-procedure TSvnMenu.SetChecked(Value: Boolean);
+procedure THgMenu.SetChecked(Value: Boolean);
 begin
   FChecked := Value;
 end;
 
-procedure TSvnMenu.SetEnabled(Value: Boolean);
+procedure THgMenu.SetEnabled(Value: Boolean);
 begin
   FEnabled := Value;
 end;
 
-procedure TSvnMenu.SetHelpContext(Value: Integer);
+procedure THgMenu.SetHelpContext(Value: Integer);
 begin
   FHelpContext := Value;
 end;
 
-procedure TSvnMenu.SetIsMultiSelectable(Value: Boolean);
+procedure THgMenu.SetIsMultiSelectable(Value: Boolean);
 begin
   FIsMultiSelectable := Value;
 end;
 
-procedure TSvnMenu.SetName(const Value: string);
+procedure THgMenu.SetName(const Value: string);
 begin
   FName := Value;
 end;
 
-procedure TSvnMenu.SetParent(const Value: string);
+procedure THgMenu.SetParent(const Value: string);
 begin
   FParent := Value;
 end;
 
-procedure TSvnMenu.SetPosition(Value: Integer);
+procedure THgMenu.SetPosition(Value: Integer);
 begin
   FPosition := Value;
 end;
 
-procedure TSvnMenu.SetVerb(const Value: string);
+procedure THgMenu.SetVerb(const Value: string);
 begin
   FVerb := Value;
 end;
 
-{ TSvnNotifier }
+{ THgNotifier }
 
-function TSvnNotifier.AddNewProject(const Project: IOTAProject): Boolean;
+function THgNotifier.AddNewProject(const Project: IOTAProject): Boolean;
 begin
-  Result := ImportProject(FSvnIDEClient, Project);
+  Result := False;
 end;
 
-procedure TSvnNotifier.AfterSave;
-begin
-
-end;
-
-procedure TSvnNotifier.BeforeSave;
+procedure THgNotifier.AfterSave;
 begin
 
 end;
 
-function TSvnNotifier.CheckoutProject(var ProjectName: string): Boolean;
+procedure THgNotifier.BeforeSave;
+begin
+
+end;
+
+function THgNotifier.CheckoutProject(var ProjectName: string): Boolean;
 begin
   Result := DoCheckOutProject(ProjectName);
 end;
 
-function TSvnNotifier.CheckoutProjectWithConnection(var ProjectName: string;
+function THgNotifier.CheckoutProjectWithConnection(var ProjectName: string;
   const Connection: string): Boolean;
 begin
   Result := DoCheckOutProject(ProjectName, Connection);
 end;
 
-constructor TSvnNotifier.Create(const SvnIDEClient: TSvnIDEClient);
+constructor THgNotifier.Create(const HgIDEClient: THgIDEClient);
 begin
   inherited Create;
-  FSvnIDEClient := SvnIDEClient;
+  FHgIDEClient := HgIDEClient;
   FNonFileIdentifiers := TStringList.Create;
   FNonFileIdentifiers.Sorted := True;
   InitNonFileIdentifiers;
 end;
 
-destructor TSvnNotifier.Destroy;
+destructor THgNotifier.Destroy;
 begin
   FNonFileIdentifiers.Free;
   inherited Destroy;
 end;
 
-procedure TSvnNotifier.Destroyed;
+procedure THgNotifier.Destroyed;
 begin
 
 end;
 
-procedure TSvnNotifier.FileBrowserMenu(const IdentList: TStrings;
+procedure THgNotifier.FileBrowserMenu(const IdentList: TStrings;
   const FileBrowserMenuList: IInterfaceList; IsMultiSelect: Boolean);
 begin
   if (IdentList.Count = 1) and DirectoryExists(IdentList[0]) and
-    IDEClient.SvnClient.IsPathVersioned(IdentList[0]) then
+    IDEClient.HgClient.IsVersioned(IdentList[0]) then
   begin
     FileBrowserMenuList.Add(FBMMSvnParent);
     FileBrowserMenuList.Add(FBMMCommit);
-    FileBrowserMenuList.Add(FBMMUpdate);
     FileBrowserMenuList.Add(FBMMLog);
-    FileBrowserMenuList.Add(FBMMClean);
-    FileBrowserMenuList.Add(FBMMRepo);
   end;
 end;
 
-function TSvnNotifier.GetAddNewProjectCaption: string;
+function THgNotifier.GetAddNewProjectCaption: string;
 begin
-  Result := sMenuAddToVersionControl;
+  Result := '';//Import is not yet supported
 end;
 
-function TSvnNotifier.GetAddNewProjectEnabled: Boolean;
+function THgNotifier.GetAddNewProjectEnabled: Boolean;
 begin
-  Result := True;
+  Result := False;
 end;
 
-function TSvnNotifier.GetCheckoutMenuCaption: string;
+function THgNotifier.GetCheckoutMenuCaption: string;
 begin
   Result := sMenuOpenFromVersionControl;
 end;
 
-function TSvnNotifier.GetDisplayName: string;
+function THgNotifier.GetDisplayName: string;
 begin
-  Result := sSubversion;
+  Result := sMercurial;
 end;
 
-function TSvnNotifier.GetImageIndex: Integer;
+function THgNotifier.GetImageIndex: Integer;
 begin
-  Result := SubversionImageIndex;
+  Result := MercurialImageIndex;
 end;
 
-function TSvnNotifier.GetName: string;
+function THgNotifier.GetName: string;
 begin
-  Result := sSubversionName;
+  Result := sMercurialName;
 end;
 
-procedure TSvnNotifier.InitNonFileIdentifiers;
+procedure THgNotifier.InitNonFileIdentifiers;
 begin
   FNonFileIdentifiers.Clear;
   FNonFileIdentifiers.Add(sBaseContainer);
@@ -531,7 +528,7 @@ begin
   FNonFileIdentifiers.Add(sOptionSetContainer);
 end;
 
-function TSvnNotifier.IsFileManaged(const Project: IOTAProject;
+function THgNotifier.IsFileManaged(const Project: IOTAProject;
   const IdentList: TStrings): Boolean;
 
   function SaveIsPathVersioned(const APathName: string): Boolean;
@@ -539,7 +536,7 @@ function TSvnNotifier.IsFileManaged(const Project: IOTAProject;
     if FileExists(APathName) then
     begin
       try
-        Result := IDEClient.SvnClient.IsPathVersioned(APathName);
+        Result := IDEClient.HgClient.IsVersioned(APathName);
       except
         Result := False;
         Exit;
@@ -588,12 +585,12 @@ begin
   end;
 end;
 
-procedure TSvnNotifier.Modified;
+procedure THgNotifier.Modified;
 begin
 
 end;
 
-procedure TSvnNotifier.ProjectManagerMenu(const Project: IOTAProject;
+procedure THgNotifier.ProjectManagerMenu(const Project: IOTAProject;
   const IdentList: TStrings; const ProjectManagerMenuList: IInterfaceList;
   IsMultiSelect: Boolean);
 
@@ -611,9 +608,10 @@ procedure TSvnNotifier.ProjectManagerMenu(const Project: IOTAProject;
   end;
 
 begin
-  ProjectManagerMenuList.Add(PMMSvnParent);
+  //ProjectManagerMenuList.Add(PMMSvnParent);//so far the file menu doesn't exist -> add root item only in the Project branch
   if ContainersProject then
   begin
+    ProjectManagerMenuList.Add(PMMSvnParent);
     ProjectManagerMenuList.Add(PMMParentCommit);
     ProjectManagerMenuList.Add(PMMRootDirCommit);
     ProjectManagerMenuList.Add(PMMProjectDirCommit);
@@ -622,9 +620,9 @@ begin
     ProjectManagerMenuList.Add(PMMRootDirUpdate);
     ProjectManagerMenuList.Add(PMMProjectDirUpdate);
     ProjectManagerMenuList.Add(PMMExpicitFilesUpdate);
-    ProjectManagerMenuList.Add(PMMParentLogSvnMenu);
-    ProjectManagerMenuList.Add(PMMRootDirLogSvnMenu);
-    ProjectManagerMenuList.Add(PMMProjectDirLogSvnMenu);
+    ProjectManagerMenuList.Add(PMMParentLogHgMenu);
+    ProjectManagerMenuList.Add(PMMRootDirLogHgMenu);
+    ProjectManagerMenuList.Add(PMMProjectDirLogHgMenu);
     ProjectManagerMenuList.Add(PMMParentCleanSvnMenu);
     ProjectManagerMenuList.Add(PMMRootDirCleanSvnMenu);
     ProjectManagerMenuList.Add(PMMProjectDirCleanSvnMenu);
@@ -643,14 +641,15 @@ end;
 var
   NotifierIndex: Integer;
 
-procedure RegisterMenus(ASvnIDEClient: TSvnIDEClient);
+procedure RegisterMenus(AHgIDEClient: THgIDEClient);
 begin
-  NotifierIndex := (BorlandIDEServices as IOTAVersionControlServices).AddNotifier(TSvnNotifier.Create(ASvnIDEClient));
-  PMMSvnParent := TParentSvnMenu.Create;
-  PMMParentCommit := TParentCommitSvnMenu.Create;
-  PMMRootDirCommit := TRootDirCommitSvnMenu.Create(ASvnIDEClient);
-  PMMProjectDirCommit := TProjectDirCommitSvnMenu.Create(ASvnIDEClient);
-  PMMExpicitFilesCommit := TExpicitFilesCommitSvnMenu.Create(ASvnIDEClient);
+  NotifierIndex := (BorlandIDEServices as IOTAVersionControlServices).AddNotifier(THgNotifier.Create(AHgIDEClient));
+  PMMSvnParent := TParentHgMenu.Create;
+  PMMParentCommit := TParentCommitHgMenu.Create;
+  PMMRootDirCommit := TRootDirCommitHgMenu.Create(AHgIDEClient);
+  PMMProjectDirCommit := TProjectDirCommitHgMenu.Create(AHgIDEClient);
+  //PMMExpicitFilesCommit := TExpicitFilesCommitHgMenu.Create(AHgIDEClient);
+  {//TODO:1
   PMMFileCommit := TFileCommitSvnMenu.Create(ASvnIDEClient);
   PMMParentUpdate := TParentUpdateSvnMenu.Create;
   PMMRootDirUpdate := TRootDirUpdateSvnMenu.Create(ASvnIDEClient);
@@ -660,20 +659,20 @@ begin
   PMMParentCleanSvnMenu := TParentCleanSvnMenu.Create;
   PMMRootDirCleanSvnMenu := TRootDirCleanSvnMenu.Create(ASvnIDEClient);
   PMMProjectDirCleanSvnMenu := TProjectDirCleanSvnMenu.Create(ASvnIDEClient);
-  PMMParentLogSvnMenu := TParentLogSvnMenu.Create;
-  PMMRootDirLogSvnMenu := TRootDirLogSvnMenu.Create(ASvnIDEClient);
-  PMMProjectDirLogSvnMenu := TProjectDirLogSvnMenu.Create(ASvnIDEClient);
+  }
+  PMMParentLogHgMenu := TParentLogHgMenu.Create;
+  PMMRootDirLogHgMenu := TRootDirLogHgMenu.Create(AHgIDEClient);
+  PMMProjectDirLogHgMenu := TProjectDirLogHgMenu.Create(AHgIDEClient);
+  {
   PMMParentRepo := TParentRepoSvnMenu.Create;
   PMMRootDirRepo := TRootDirRepoSvnMenu.Create(ASvnIDEClient);
   PMMProjectDirRepo := TProjectDirRepoSvnMenu.Create(ASvnIDEClient);
   PMMFileRepoSvnMenu := TFileRepoSvnMenu.Create(ASvnIDEClient);
+  }
 
-  FBMMSvnParent := TParentSvnMenu.Create;
-  FBMMCommit := TDirCommitSvnMenu.Create(ASvnIDEClient);
-  FBMMUpdate := TDirUpdateSvnMenu.Create(ASvnIDEClient);
-  FBMMLog := TDirLogSvnMenu.Create(ASvnIDEClient);
-  FBMMClean := TDirCleanSvnMenu.Create(ASvnIDEClient);
-  FBMMRepo := TDirRepoSvnMenu.Create(ASvnIDEClient);
+  FBMMSvnParent := TParentHgMenu.Create;
+  FBMMCommit := TDirCommitHgMenu.Create(AHgIDEClient);
+  FBMMLog := TDirLogHgMenu.Create(AHgIDEClient);
 end;
 
 procedure UnRegisterMenus;
@@ -693,9 +692,9 @@ begin
   PMMParentCleanSvnMenu := nil;
   PMMRootDirCleanSvnMenu := nil;
   PMMProjectDirCleanSvnMenu := nil;
-  PMMParentLogSvnMenu := nil;
-  PMMRootDirLogSvnMenu := nil;
-  PMMProjectDirLogSvnMenu := nil;
+  PMMParentLogHgMenu := nil;
+  PMMRootDirLogHgMenu := nil;
+  PMMProjectDirLogHgMenu := nil;
   PMMParentRepo := nil;
   PMMRootDirRepo := nil;
   PMMProjectDirRepo := nil;
@@ -703,26 +702,23 @@ begin
 
   FBMMSvnParent := nil;
   FBMMCommit := nil;
-  FBMMUpdate := nil;
   FBMMLog := nil;
-  FBMMClean := nil;
-  FBMMRepo := nil;
 end;
 
-{ TParentSvnMenu }
+{ TParentHgMenu }
 
-constructor TParentSvnMenu.Create;
+constructor TParentHgMenu.Create;
 begin
   inherited Create(nil);
-  FCaption := sPMMSvnParent;
-  FVerb := sPMVSvnParent;
+  FCaption := sPMMHgParent;
+  FVerb := sPMVHgParent;
   FPosition := pmmpUserVersionControl;
   FHelpContext := 0;
 end;
 
-function TParentSvnMenu.GetImageIndex: Integer;
+function TParentHgMenu.GetImageIndex: Integer;
 begin
-  Result := SubversionImageIndex;
+  Result := MercurialImageIndex;
 end;
 
 end.

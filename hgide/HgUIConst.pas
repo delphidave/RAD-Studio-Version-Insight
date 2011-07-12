@@ -31,48 +31,42 @@
 {                                                                              }
 {******************************************************************************}
 {                                                                              }
-{ This unit contains resource strings used by svnide package.                  }
+{ This unit contains resource strings used by svnui package.                   }
 {                                                                              }
 {******************************************************************************}
 
-unit SvnIDEConst;
+unit HgUIConst;
 
 interface
 
 resourcestring
-  sLoadError = 'Can not load DLL';
-  sSubversion = 'Subversion';
-  sPMMCommit = 'Commit';
-  sPMMUpdate = 'Update';
-  sPMMClean = 'Clean';
-  sPMMSvnParent = 'Subversion';
-  sPMMLog = 'Show Log';
-  sPMMRootDir = 'From Repository Root';
-  sPMMProjectDir = 'From Project Directory';
-  sPMMExpicitFiles = 'Files in this Project';
-  sPMMRepo = 'Browse Repository';
-  sMenuAddToVersionControl = 'Subversion Import';
-  sMenuOpenFromVersionControl = 'Open From Subversion (Checkout)';
-
-  sCommit = 'Commit';
-  sUpdated = 'Updated';
-  sUpdateCompletedAtRevision = 'At Revision: %d';
-  sCommited = 'Commited';
-  sCommitCompleted = 'Commit completed at revision: %d';
-  sCommitLoaded = 'A commit window is still open. Please close it if you wish to start a new commit.';
-  sNeedToClean = 'Run Subversion Clean to correct problem.';
-  sRunClean = 'Would you like to run Subversion Clean?';
-  sCleaning = 'Cleaning ';
-  sLog = 'Log';
-  sImport = 'Import';
-  sFilesUnderDir = 'All files under %s will be committed';
-  sWorking = '-Working';
-  sRepoBrowser = 'Repository Browser';
-  sVersionControlAddInOptionArea = 'Version Control';
-  sMergeDialogCaption = 'Merge revisions %s - %s of %s into %s';
-  sHead = 'HEAD';
-  sRetrievingFileRevision = 'Retrieving %s revision %d';
-  sSavingFileRevision = 'Saving %s revision %d';
+  SLoginCaption = 'Please login to Subversion server.';
+  SLoginRealmCaption = 'Please login to Subversion server:'#13#10'%s';
+  SServerSSLCertCaption = 'Server returned the following SSL server certificate:';
+  SServerSSLCertRealmCaption = 'Server %s returned the following SSL server certificate:';
+  SServerSSLCertFailures = 'The following errors were encountered when validating the certificate:';
+  SServerSSLCertNotYetValid = 'The certificate is not valid yet.';
+  SServerSSLCertExpired = 'The certificate has expired.';
+  SServerSSLCertHostName = 'The certificate host name does not match the remote host name.';
+  SServerSSLCertAuthority = 'The certificate authority is unknown/not trusted.';
+  SServerSSLCertOther = 'Other errors.';
+  sModified = 'Modified';
+  sAdded = 'Added';
+  sDeleted = 'Deleted';
+  sReplaced = 'Replaced';
+  sRevertCheck = 'Are you sure you would like to revert? You will lose all local changes.';
+  sRevertDirAddCheck = 'Are you sure you would like to revert? These items will no longer be added to the repository.';
+  sRevertDirMoreDirectories = 'and %d additional directories';
+  sRevertDirMoreFiles = 'and %d additional files';
+  sRunReverseMergeRevision = 'Do you really want to revert the changes of revision %s in %s?';
+  sRunReverseMergeToRevision = 'Do you really want to revert all changes in %s and go back to revision %s?';
+  sRunFileReverseMergeRevision = 'Do you really want to revert the changes of revision %s in %s?';
+  sDestination = 'Destination for checked out files.';
+  sSaveRevisionDestination = 'Destination to save selected files of revision %s';
+  sConflictsRemaining = 'There are unresolved conflicts remaining.  Do you still wish to close?';
+  sLoadRepoContentError = 'Cannot load repository content. Please check the entered URL.';
+  sNoFiles = 'No file modifications found.  There is nothing to commit.';
+  sBugIDCaption = 'Bug-ID';
 
 implementation
 

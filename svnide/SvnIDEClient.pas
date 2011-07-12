@@ -109,7 +109,8 @@ implementation
 uses ToolsApi, FileHistoryApi, Controls, Forms, Dialogs,
   SvnClientLoginPrompt, SvnClientSSLClientCertPrompt, SvnIDEMenus,
   SvnClientSSLServerTrustPrompt, SvnIDEHistory, SvnImages, SvnIDEConst,
-  Registry, SvnIDENotifier, SvnIDEClean, SvnIDEAddInOptions;
+  Registry, SvnIDENotifier, SvnIDEClean, SvnIDEAddInOptions, SvnIDEIcons,
+  SvnIDEFileStates;
 
 const
  sURLHistory = 'URLHistory';
@@ -163,6 +164,8 @@ begin
   RegisterMenus(IDEClient);
   RegisterFileNotification;
   RegisterAddInOptions;
+  RegisterImages;
+  RegisterFileStateProvider;
 end;
 
 { TSvnOptions }
@@ -517,6 +520,7 @@ end;
 
 initialization
 finalization
+  UnregisterFileStateProvider;
   UnRegisterMenus;
   IDEClient.Free;
 
